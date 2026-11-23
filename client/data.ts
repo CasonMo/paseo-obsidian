@@ -20,7 +20,7 @@ export function useNotes(vault: string | null, limit: number) {
   return useQuery({
     queryKey: [...KEY, "notes", vault, limit],
     queryFn: () => {
-      if (vault === null) throw new Error("未选择 vault");
+      if (vault === null) throw new Error("err.no-vault");
       return call({ vault, limit });
     },
     enabled: vault !== null,
@@ -35,7 +35,7 @@ export function useSearch(scope: "vault" | "all", vault: string | null, query: s
   return useQuery({
     queryKey: [...KEY, "search", scope === "all" ? null : vault, query],
     queryFn: () => {
-      if (scope === "vault" && vault === null) throw new Error("未选择 vault");
+      if (scope === "vault" && vault === null) throw new Error("err.no-vault");
       return call({ query, vault: scope === "all" ? null : vault });
     },
     enabled: query !== "" && (scope === "all" || vault !== null),
@@ -50,7 +50,7 @@ export function useNote(vault: string | null, notePath: string | null) {
   return useQuery({
     queryKey: [...KEY, "note", vault, notePath],
     queryFn: () => {
-      if (vault === null || notePath === null) throw new Error("未选择笔记");
+      if (vault === null || notePath === null) throw new Error("err.no-note");
       return call({ vault, path: notePath });
     },
     enabled: vault !== null && notePath !== null,
@@ -68,7 +68,7 @@ export function useNoteImages(vault: string | null, images: NoteImage[]) {
     queries: wanted.map((image) => ({
       queryKey: [...KEY, "image", vault, image.path],
       queryFn: () => {
-        if (vault === null || image.path === null) throw new Error("未选择图片");
+        if (vault === null || image.path === null) throw new Error("err.no-image");
         return call({ vault, path: image.path });
       },
       staleTime: Infinity,

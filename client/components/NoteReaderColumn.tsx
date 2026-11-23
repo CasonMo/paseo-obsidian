@@ -2,8 +2,9 @@ import { Markdown, ScrollView, TextInput, copyText, useToast } from "@getpaseo/p
 import { useEffect, useMemo, useRef, useState, type ComponentRef } from "react";
 import { Pressable, Text, View } from "react-native";
 import type { NoteImage, NoteLink } from "../../shared/contracts";
-import { findMatches, rewriteImages, splitSections } from "../../shared/markdown";
+import { findMatchSpans, makeSnippet, rewriteImages, splitSections } from "../../shared/markdown";
 import { useInvalidateImages, useNote, useNoteImages, useRefreshNote } from "../data";
+import { errorText, useT } from "../i18n";
 import { buildReplacements } from "../preview";
 import { consumeAnchor, navigate } from "../store";
 import { INDENT, type Styles } from "../styles";
@@ -46,6 +47,7 @@ export function NoteReaderColumn({
   const refreshNote = useRefreshNote();
   const invalidateImages = useInvalidateImages();
   const toast = useToast();
+  const t = useT();
   const latest = note.data?.ok ? note.data : null;
   const [pinned, setPinned] = useState<Pinned | null>(null);
   const [dismissedMtime, setDismissedMtime] = useState<number | null>(null);
@@ -53,6 +55,7 @@ export function NoteReaderColumn({
   const [linksOpen, setLinksOpen] = useState(false);
   const [findQuery, setFindQuery] = useState("");
   const [findCursor, setFindCursor] = useState(0);
+  const [findListOpen, setFindListOpen] = useState(false);
   const scrollRef = useRef<ComponentRef<typeof ScrollView> | null>(null);
   const sectionY = useRef(new Map<number, number>());
   const lastScroll = useRef<{ index: number; y: number } | null>(null);
@@ -79,17 +82,33 @@ export function NoteReaderColumn({
   const imageQueries = useNoteImages(vault, images);
   const signature = imageQueries.map((query) => `${query.status}:${query.dataUpdatedAt}`).join("|");
   const replacements = useMemo(
-    () => buildReplacements(images, imageQueries, vault, dataUrls.current),
-    [images, signature, vault],
+    () =>
+      buildReplacements(images, imageQueries, vault, dataUrls.current, {
+        // 占位符原样回填取模板串（SDK 要求有占位符必须传值）；真正的插值在 buildReplacements 内做。
+        missing: t("preview.missing", { ref: "{{ref}}" }),
+        tooLarge: t("preview.tooLarge", { mb: "{{mb}}", ref: "{{ref}}" }),
+        tooMany: t("preview.tooMany", { n: "{{n}}", ref: "{{ref}}" }),
+        loading: t("preview.loading"),
+        failed: t("preview.failed", { ref: "{{ref}}" }),
+      }),
+    [images, signature, vault, t],
   );
   const sectionTexts = useMemo(
     () => sections.map((section) => rewriteImages(section.text, replacements)),
     [sections, replacements],
   );
   const matches = useMemo(
-    () => sections.flatMap((section, index) => findMatches(section.text, findQuery).map(() => index)),
+    () =>
+      sections.flatMap((section, index) =>
+        findMatchSpans(section.text, findQuery).map((span) => ({ section: index, at: span.at, length: span.length })),
+      ),
     [sections, findQuery],
   );
+
+  // sections 变化（refresh/外部改动）后 clamp cursor，防越界。
+  useEffect(() => {
+    setFindCursor((current) => Math.min(current, Math.max(0, matches.length - 1)));
+  }, [matches.length]);
 
   function scrollToSection(index: number) {
     const y = sectionY.current.get(index);
@@ -102,7 +121,7 @@ export function NoteReaderColumn({
     if (matches.length === 0) return;
     const next = (findCursor + delta + matches.length) % matches.length;
     setFindCursor(next);
-    scrollToSection(matches[next]);
+    scrollToSection(matches[next].section);
   }
 
   // 链接锚点：y map 就绪后一次性消费；无匹配也清除，防残留日后误跳。
@@ -139,9 +158,9 @@ export function NoteReaderColumn({
   async function copyPath() {
     try {
       await copyText(`${vault}/${notePath}`);
-      toast.show("已复制绝对路径", { variant: "success" });
+      toast.show(t("reader.copied"), { variant: "success" });
     } catch {
-      toast.error("复制失败，请手动选择路径");
+      toast.error(t("reader.copyFailed"));
     }
   }
 
@@ -154,39 +173,42 @@ export function NoteReaderColumn({
     <View style={styles.readerColumn}>
       <View style={styles.toolbar}>
         {onExpandVault ? (
-          <IconButton label="展开 vault 栏" onPress={onExpandVault} icon="Folder" styles={styles} />
+          <IconButton label={t("vault.expand")} onPress={onExpandVault} icon="Folder" styles={styles} />
         ) : null}
         {onExpandList ? (
-          <IconButton label="展开目录栏" onPress={onExpandList} icon="PanelLeftOpen" styles={styles} />
+          <IconButton label={t("list.expand")} onPress={onExpandList} icon="PanelLeftOpen" styles={styles} />
         ) : null}
-        {onBack ? <IconButton label="返回笔记列表" onPress={onBack} text="返回" styles={styles} /> : null}
-        <IconButton label="后退" onPress={onHistoryBack} disabled={!canBack} icon="ArrowLeft" styles={styles} />
-        <IconButton label="前进" onPress={onHistoryForward} disabled={!canForward} icon="ArrowRight" styles={styles} />
+        {onBack ? <IconButton label={t("reader.backToListLabel")} onPress={onBack} text={t("common.back")} styles={styles} /> : null}
+        <IconButton label={t("reader.historyBack")} onPress={onHistoryBack} disabled={!canBack} icon="ArrowLeft" styles={styles} />
+        <IconButton label={t("reader.historyForward")} onPress={onHistoryForward} disabled={!canForward} icon="ArrowRight" styles={styles} />
         <Text style={styles.title} numberOfLines={2}>
           {pinned?.title ?? notePath.slice(notePath.lastIndexOf("/") + 1)}
         </Text>
       </View>
       <View style={styles.toolbar}>
-        <IconButton label="复制笔记绝对路径" onPress={() => void copyPath()} text="复制路径" styles={styles} />
-        <IconButton label="刷新笔记" onPress={refresh} text="刷新" styles={styles} />
-        <Chip label="切换大纲" active={tocOpen} onPress={() => setTocOpen((open) => !open)} styles={styles}>
-          大纲
+        <IconButton label={t("reader.copyPathLabel")} onPress={() => void copyPath()} text={t("reader.copyPath")} styles={styles} />
+        <IconButton label={t("reader.refreshLabel")} onPress={refresh} text={t("reader.refresh")} styles={styles} />
+        <Chip label={t("reader.tocToggle")} active={tocOpen} onPress={() => setTocOpen((open) => !open)} styles={styles}>
+          {t("reader.toc")}
         </Chip>
-        <Chip label="切换链出笔记" active={linksOpen} onPress={() => setLinksOpen((open) => !open)} styles={styles}>
-          链出 ({links.length})
+        <Chip label={t("reader.linksToggle")} active={linksOpen} onPress={() => setLinksOpen((open) => !open)} styles={styles}>
+          {t("reader.links", { n: links.length })}
+        </Chip>
+        <Chip label={t("reader.matchesToggle")} active={findListOpen} onPress={() => setFindListOpen((open) => !open)} styles={styles}>
+          {t("reader.matches", { n: matches.length })}
         </Chip>
         {pinned ? <Text style={styles.small}>{formatTime(pinned.mtimeMs)}</Text> : null}
       </View>
 
       {stale ? (
         <View style={styles.banner}>
-          <Text style={styles.muted}>笔记已被外部修改。</Text>
+          <Text style={styles.muted}>{t("reader.stale")}</Text>
           <View style={styles.toolbar}>
-            <IconButton label="加载外部修改" onPress={refresh} text="刷新" styles={styles} />
+            <IconButton label={t("reader.loadExternal")} onPress={refresh} text={t("reader.refresh")} styles={styles} />
             <IconButton
-              label="忽略本次外部修改"
+              label={t("reader.dismissStale")}
               onPress={() => latest && setDismissedMtime(latest.mtimeMs)}
-              text="忽略"
+              text={t("reader.dismiss")}
               styles={styles}
             />
           </View>
@@ -194,10 +216,10 @@ export function NoteReaderColumn({
       ) : null}
       {deleted ? (
         <View style={styles.banner}>
-          <Text style={styles.error}>笔记已被外部删除。</Text>
+          <Text style={styles.error}>{t("reader.deleted")}</Text>
           {onBack ? (
             <Pressable accessibilityRole="button" onPress={onBack} style={styles.button}>
-              <Text style={styles.buttonText}>返回列表</Text>
+              <Text style={styles.buttonText}>{t("reader.backToList")}</Text>
             </Pressable>
           ) : null}
         </View>
@@ -205,12 +227,12 @@ export function NoteReaderColumn({
 
       {tocOpen ? (
         <ScrollView style={styles.panel}>
-          {headings.length === 0 ? <Text style={styles.muted}>没有标题</Text> : null}
+          {headings.length === 0 ? <Text style={styles.muted}>{t("reader.noHeadings")}</Text> : null}
           {headings.map(({ index, heading }) => (
             <Pressable
               key={index}
               accessibilityRole="button"
-              accessibilityLabel={`跳到 ${heading.text}`}
+              accessibilityLabel={t("reader.jumpToHeading", { heading: heading.text })}
               onPress={() => scrollToSection(index)}
               style={[styles.row, { paddingLeft: 8 + (heading.level - 1) * INDENT }]}
             >
@@ -224,12 +246,12 @@ export function NoteReaderColumn({
 
       {linksOpen ? (
         <ScrollView style={styles.panel}>
-          {links.length === 0 ? <Text style={styles.muted}>没有链出笔记</Text> : null}
+          {links.length === 0 ? <Text style={styles.muted}>{t("reader.noLinks")}</Text> : null}
           {links.map((link, index) => (
             <Pressable
               key={`${link.ref}-${index}`}
               accessibilityRole="button"
-              accessibilityLabel={`打开链出笔记 ${link.title}`}
+              accessibilityLabel={t("reader.openLinkLabel", { title: link.title })}
               disabled={link.path === null}
               onPress={() => link.path !== null && navigate(vault, link.path, link.heading)}
               style={styles.row}
@@ -239,7 +261,7 @@ export function NoteReaderColumn({
                 {link.heading ? ` #${link.heading}` : ""}
               </Text>
               <Text style={styles.small}>
-                {link.path === null ? "未解析到目标" : link.kind === "wikilink" ? "wikilink" : "markdown 链接"}
+                {link.path === null ? t("reader.linkUnresolved") : link.kind === "wikilink" ? t("reader.linkWikilink") : t("reader.linkMarkdown")}
               </Text>
             </Pressable>
           ))}
@@ -254,21 +276,21 @@ export function NoteReaderColumn({
             setFindQuery(value);
             setFindCursor(0);
           }}
-          placeholder="文内查找…"
+          placeholder={t("reader.findPlaceholder")}
           placeholderTextColor={styles.muted.color}
           autoCapitalize="none"
           autoCorrect={false}
         />
         <Text style={styles.small}>{findQuery ? `${matches.length === 0 ? 0 : findCursor + 1}/${matches.length}` : ""}</Text>
         <IconButton
-          label="上一个匹配"
+          label={t("reader.prevMatch")}
           onPress={() => stepFind(-1)}
           disabled={matches.length === 0}
           icon="ChevronUp"
           styles={styles}
         />
         <IconButton
-          label="下一个匹配"
+          label={t("reader.nextMatch")}
           onPress={() => stepFind(1)}
           disabled={matches.length === 0}
           icon="ChevronDown"
@@ -276,14 +298,37 @@ export function NoteReaderColumn({
         />
       </View>
 
-      {note.isPending && pinned === null ? <Text style={styles.muted}>加载中…</Text> : null}
+      {findListOpen && findQuery ? (
+        <ScrollView style={styles.panel}>
+          {matches.length === 0 ? <Text style={styles.muted}>{t("reader.noMatches")}</Text> : null}
+          {matches.map((match, index) => (
+            <Pressable
+              key={`${match.section}-${match.at}`}
+              accessibilityRole="button"
+              accessibilityLabel={t("reader.jumpToMatch", { n: index + 1 })}
+              onPress={() => {
+                setFindCursor(index);
+                scrollToSection(match.section);
+              }}
+              style={[styles.row, index === findCursor && styles.rowActive]}
+            >
+              <Text style={styles.small} numberOfLines={1}>
+                {sections[match.section].heading?.text ?? pinned?.title ?? ""}
+              </Text>
+              <Text style={styles.snippet}>{makeSnippet(sections[match.section].text, match.at, match.length)}</Text>
+            </Pressable>
+          ))}
+        </ScrollView>
+      ) : null}
+
+      {note.isPending && pinned === null ? <Text style={styles.muted}>{t("common.loading")}</Text> : null}
       {note.isError && pinned === null ? (
         <StatusBlock error={note.error} onRetry={() => void note.refetch()} styles={styles} />
       ) : null}
       {note.data && !note.data.ok && pinned === null ? (
         <View style={{ gap: 8 }}>
-          <Text style={styles.error}>{note.data.message}</Text>
-          {note.data.code === "vault-missing" ? <Text style={styles.muted}>请在设置里修正该 vault 路径。</Text> : null}
+          <Text style={styles.error}>{errorText(note.data.message, t)}</Text>
+          {note.data.code === "vault-missing" ? <Text style={styles.muted}>{t("reader.fixVaultPath")}</Text> : null}
         </View>
       ) : null}
 

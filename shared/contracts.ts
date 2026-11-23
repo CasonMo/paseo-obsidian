@@ -35,6 +35,7 @@ export const obsidianUiSettings = defineSettings({
     listCollapsed: z.boolean().default(false),
     vaultWidth: z.number().default(200),
     listWidth: z.number().default(320),
+    searchHistory: z.array(z.string().min(1).max(200)).max(20).default([]),
   }),
 });
 
@@ -56,7 +57,7 @@ export const notePathSchema = z
   .min(1)
   .max(1024)
   .refine((value) => !value.startsWith("/") && !value.includes("\\") && !value.split("/").includes(".."), {
-    message: "必须是 vault 内的相对路径",
+    message: "err.invalid-relative-path",
   });
 
 export const vaultEntrySchema = z.object({
@@ -161,5 +162,6 @@ export const searchNotesRpc = defineRpc({
     hits: z.array(searchHitSchema),
     total: z.number(),
     truncated: z.boolean(),
+    problem: z.string().nullable().default(null),
   }),
 });

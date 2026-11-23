@@ -19,16 +19,19 @@ the Paseo platform mark. See `OVERVIEW.md` for the full disclaimer.
   with snippets, `#tag` / `tag:xx` filters (frontmatter tags and inline tags).
 - Outgoing-links panel (`[[wikilinks]]` with aliases and `#heading` anchors, relative
   markdown links) with session back/forward history.
-- Outline (ATX headings) with jump-to-section, and in-note find with match count and
-  prev/next cycling.
+- Outline (ATX headings) with jump-to-section, and in-note find with match count,
+  prev/next cycling and a collapsible match list (section title + snippet, click to jump).
+- Search filters `path:fragment`, `ext:extension`, `re:regex` (no spaces, 200-char source cap,
+  128KB per-file scan truncation); recent-search chips remembered per device.
 - External-change notice: polled note mtime shows a refresh/dismiss banner; deleted
   notes show a deleted banner.
 - Inline screenshots and images, including Obsidian `![[image.png]]` embeds, transferred
   over the plugin binary RPC and inlined as data URLs.
 - Collapsible vault and list columns with draggable widths; browse state (vault, note,
   collapse states, expanded folders, column widths) remembered per device.
-- Single-line note names; on web the list scrolls horizontally to reveal full names and
-  hovering shows the full name; on native names ellipsize (no horizontal scroll).
+- Single-line note names with horizontal scrolling on web (hover shows the full name) and
+  on native (measured pixel-width horizontal container); column resizing is web-only.
+- Bilingual interface (English / Simplified Chinese) following the app language.
 - Command Center (⌘K) entry: "打开 Obsidian 笔记".
 
 ## Setup

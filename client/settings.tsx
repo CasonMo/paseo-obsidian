@@ -15,6 +15,7 @@ import { Pressable, Text, View } from "react-native";
 import { obsidianSettings } from "../shared/contracts";
 import type { ObsidianSettingsValues } from "../shared/contracts";
 import { useInvalidateObsidian } from "./data";
+import { errorText, useT } from "./i18n";
 
 const MAX_VAULT_PATHS = 20;
 
@@ -74,6 +75,7 @@ function createStyles(theme: PluginSurfaceProps["theme"]) {
 export function ObsidianSettingsScreen({ theme, onBack }: PluginSurfaceProps & { onBack?: () => void }) {
   const settingsState = useSettings(obsidianSettings);
   const toast = useToast();
+  const t = useT();
   const invalidate = useInvalidateObsidian();
   const [draft, setDraft] = useState<{ values: ObsidianSettingsValues; revision: string } | null>(null);
   const [newPath, setNewPath] = useState("");
@@ -94,7 +96,7 @@ export function ObsidianSettingsScreen({ theme, onBack }: PluginSurfaceProps & {
   if (settingsState.status === "loading") {
     return (
       <View style={styles.page}>
-        <Text style={styles.muted}>加载设置中…</Text>
+        <Text style={styles.muted}>{t("settings.loading")}</Text>
       </View>
     );
   }
@@ -102,9 +104,9 @@ export function ObsidianSettingsScreen({ theme, onBack }: PluginSurfaceProps & {
   if (settingsState.status === "error") {
     return (
       <View style={styles.page}>
-        <Text style={styles.error}>设置读取失败：{settingsState.error}</Text>
+        <Text style={styles.error}>{t("settings.loadFailed", { message: errorText(settingsState.error, t) })}</Text>
         <Pressable accessibilityRole="button" onPress={() => void settingsState.reload()} style={styles.button}>
-          <Text style={styles.buttonText}>重新加载</Text>
+          <Text style={styles.buttonText}>{t("settings.reload")}</Text>
         </Pressable>
       </View>
     );
@@ -113,18 +115,18 @@ export function ObsidianSettingsScreen({ theme, onBack }: PluginSurfaceProps & {
   if (settingsState.status === "invalid") {
     return (
       <View style={styles.page}>
-        <Text style={styles.error}>已保存的设置无法解析：{settingsState.error}</Text>
+        <Text style={styles.error}>{t("settings.invalid", { message: errorText(settingsState.error, t) })}</Text>
         <Pressable
           accessibilityRole="button"
           onPress={() => {
             void settingsState.reset().then((ok) => {
               setDraft(null);
-              toast.show(ok ? "已恢复默认设置" : "恢复失败", { variant: ok ? "success" : "error" });
+              toast.show(ok ? t("settings.resetOk") : t("settings.resetFailed"), { variant: ok ? "success" : "error" });
             });
           }}
           style={styles.button}
         >
-          <Text style={styles.buttonText}>恢复默认</Text>
+          <Text style={styles.buttonText}>{t("settings.reset")}</Text>
         </Pressable>
       </View>
     );
@@ -140,15 +142,15 @@ export function ObsidianSettingsScreen({ theme, onBack }: PluginSurfaceProps & {
   function addPath() {
     const value = newPath.trim();
     if (!value) {
-      toast.error("路径不能为空");
+      toast.error(t("settings.pathEmpty"));
       return;
     }
     if (values.vaultPaths.includes(value)) {
-      toast.error("该路径已存在");
+      toast.error(t("settings.pathDuplicate"));
       return;
     }
     if (values.vaultPaths.length >= MAX_VAULT_PATHS) {
-      toast.error(`最多 ${MAX_VAULT_PATHS} 条路径`);
+      toast.error(t("settings.pathLimit", { n: MAX_VAULT_PATHS }));
       return;
     }
     patch({ vaultPaths: [...values.vaultPaths, value] });
@@ -161,35 +163,35 @@ export function ObsidianSettingsScreen({ theme, onBack }: PluginSurfaceProps & {
     const ok = await settingsState.save(draft.values, draft.revision);
     setSaving(false);
     if (ok) {
-      toast.show("已保存", { variant: "success" });
+      toast.show(t("settings.saved"), { variant: "success" });
       setDraft(null);
       invalidate();
     } else {
-      toast.error(settingsState.saveError ?? "保存失败");
+      toast.error(settingsState.saveError === null ? t("settings.saveFailed") : errorText(settingsState.saveError, t));
     }
   }
 
   const sections = (
     <View style={styles.page}>
-      <SettingsSection title="Vault 路径" info="每台机器各自保存自己的路径。支持绝对路径或 ~/ 开头。">
+      <SettingsSection title={t("settings.pathsTitle")} info={t("settings.pathsInfo")}>
         <SettingsCard>
           {values.vaultPaths.length === 0 ? (
-            <SettingsRow label="还没有手工路径" hint="可以只靠下面的自动发现，或在下面添加同步目录。" />
+            <SettingsRow label={t("settings.noPaths")} hint={t("settings.noPathsHint")} />
           ) : (
             values.vaultPaths.map((vaultPath, index) => (
               <SettingsRow key={vaultPath} label={vaultPath}>
                 <Pressable
                   accessibilityRole="button"
-                  accessibilityLabel={`删除 ${vaultPath}`}
+                  accessibilityLabel={t("settings.removePathLabel", { path: vaultPath })}
                   onPress={() => patch({ vaultPaths: values.vaultPaths.filter((_, position) => position !== index) })}
                   style={styles.button}
                 >
-                  <Text style={styles.dangerText}>删除</Text>
+                  <Text style={styles.dangerText}>{t("settings.remove")}</Text>
                 </Pressable>
               </SettingsRow>
             ))
           )}
-          <SettingsRow label="添加路径">
+          <SettingsRow label={t("settings.addPath")}>
             <View style={styles.addRow}>
               <TextInput
                 style={styles.input}
@@ -201,18 +203,18 @@ export function ObsidianSettingsScreen({ theme, onBack }: PluginSurfaceProps & {
                 autoCorrect={false}
               />
               <Pressable accessibilityRole="button" onPress={addPath} style={styles.button}>
-                <Text style={styles.buttonText}>添加</Text>
+                <Text style={styles.buttonText}>{t("settings.add")}</Text>
               </Pressable>
             </View>
           </SettingsRow>
         </SettingsCard>
       </SettingsSection>
 
-      <SettingsSection title="自动发现">
+      <SettingsSection title={t("settings.autoTitle")}>
         <SettingsCard>
           <SettingsSwitch
-            label="读本机 Obsidian 注册表"
-            hint="自动列出 Obsidian 记录过的 vault。服务器没装 Obsidian 时为空，不影响手工路径。"
+            label={t("settings.autoLabel")}
+            hint={t("settings.autoHint")}
             value={values.autoDetect}
             onValueChange={(value) => patch({ autoDetect: value })}
           />
@@ -226,7 +228,7 @@ export function ObsidianSettingsScreen({ theme, onBack }: PluginSurfaceProps & {
           disabled={saving || !dirty}
           style={[styles.button, styles.buttonPrimary, (saving || !dirty) && styles.buttonDisabled]}
         >
-          <Text style={[styles.buttonText, styles.buttonTextPrimary]}>{saving ? "保存中…" : "保存"}</Text>
+          <Text style={[styles.buttonText, styles.buttonTextPrimary]}>{saving ? t("settings.saving") : t("settings.save")}</Text>
         </Pressable>
         <Pressable
           accessibilityRole="button"
@@ -236,9 +238,9 @@ export function ObsidianSettingsScreen({ theme, onBack }: PluginSurfaceProps & {
           }}
           style={styles.button}
         >
-          <Text style={styles.buttonText}>重新加载</Text>
+          <Text style={styles.buttonText}>{t("settings.reload")}</Text>
         </Pressable>
-        {dirty ? <Text style={styles.dirtyText}>有未保存的修改</Text> : null}
+        {dirty ? <Text style={styles.dirtyText}>{t("settings.dirty")}</Text> : null}
       </View>
     </View>
   );
@@ -247,9 +249,9 @@ export function ObsidianSettingsScreen({ theme, onBack }: PluginSurfaceProps & {
     return (
       <ScrollView style={styles.screen} contentContainerStyle={styles.content}>
         <Pressable accessibilityRole="button" onPress={onBack} style={styles.backButton}>
-          <Text style={styles.backText}>返回</Text>
+          <Text style={styles.backText}>{t("common.back")}</Text>
         </Pressable>
-        <Text style={styles.inlineTitle}>Obsidian 设置</Text>
+        <Text style={styles.inlineTitle}>{t("settings.title")}</Text>
         {sections}
       </ScrollView>
     );

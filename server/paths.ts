@@ -26,18 +26,18 @@ export function toVaultRelative(root: string, absolute: string): string {
 
 export function describeFsError(error: unknown): string {
   const code = (error as NodeJS.ErrnoException)?.code;
-  if (code === "ENOENT") return "路径不存在";
-  if (code === "ENOTDIR") return "不是目录";
-  if (code === "EACCES" || code === "EPERM") return "无权限读取";
+  if (code === "ENOENT") return "err.path-missing";
+  if (code === "ENOTDIR") return "err.not-dir";
+  if (code === "EACCES" || code === "EPERM") return "err.perm";
   // 兜底绝不回显 error.message：非常见 errno 的 Node fs 错误自带绝对用户路径。
-  return `文件系统错误（${code ?? "unknown"}）`;
+  return `err.fs:${code ?? "unknown"}`;
 }
 
 export function failureFrom(error: unknown): { code: FailureCode; message: string } {
   if (error instanceof VaultError) return { code: error.code, message: error.message };
   const code = (error as NodeJS.ErrnoException)?.code;
-  if (code === "ENOENT") return { code: "not-found", message: "文件不存在" };
-  if (code === "EACCES" || code === "EPERM") return { code: "forbidden", message: "无权限读取" };
+  if (code === "ENOENT") return { code: "not-found", message: "err.not-found" };
+  if (code === "EACCES" || code === "EPERM") return { code: "forbidden", message: "err.perm" };
   return { code: "error", message: describeFsError(error) };
 }
 
@@ -48,11 +48,11 @@ export async function resolveInVault(root: string, relativePath: string): Promis
     real = await realpath(path.resolve(root, relativePath));
   } catch (error) {
     const code = (error as NodeJS.ErrnoException)?.code;
-    if (code === "EACCES" || code === "EPERM") throw new VaultError("forbidden", "无权限读取");
-    throw new VaultError("not-found", "文件不存在");
+    if (code === "EACCES" || code === "EPERM") throw new VaultError("forbidden", "err.perm");
+    throw new VaultError("not-found", "err.not-found");
   }
   if (real !== root && !real.startsWith(root + path.sep)) {
-    throw new VaultError("forbidden", "路径超出 vault 范围");
+    throw new VaultError("forbidden", "err.forbidden-range");
   }
   return real;
 }

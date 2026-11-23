@@ -7,12 +7,14 @@ import { NoteListColumn } from "./components/NoteListColumn";
 import { NoteReaderColumn } from "./components/NoteReaderColumn";
 import { VaultColumn } from "./components/VaultColumn";
 import { useVaults } from "./data";
+import { useT } from "./i18n";
 import { ObsidianSettingsScreen } from "./settings";
 import { navigate, setUiState, useBrowsePersistence, useUiState } from "./store";
 import { createStyles } from "./styles";
 
 export function ObsidianScreen(props: PluginScreenProps) {
   const { theme, layout } = props;
+  const t = useT();
   const compact = layout.compact;
   const styles = useMemo(() => createStyles(theme, compact), [theme, compact]);
   const { vault, notePath, vaultCollapsed, history, historyIndex, listCollapsed, vaultWidth, listWidth } = useUiState();
@@ -82,9 +84,9 @@ export function ObsidianScreen(props: PluginScreenProps) {
   if (!vaults.isPending && !vaults.isError && entries.length === 0) {
     return (
       <View style={[styles.screen, { flexDirection: "column" }]}>
-        <EmptyBlock text="本机还没有配置 vault 路径。" styles={styles}>
+        <EmptyBlock text={t("reader.noVaults")} styles={styles}>
           <Pressable accessibilityRole="button" onPress={openSettings} style={styles.button}>
-            <Text style={styles.buttonText}>去设置</Text>
+            <Text style={styles.buttonText}>{t("reader.openSettings")}</Text>
           </Pressable>
         </EmptyBlock>
       </View>
@@ -172,13 +174,13 @@ export function ObsidianScreen(props: PluginScreenProps) {
         <View style={styles.readerColumn}>
           <View style={styles.toolbar}>
             {vaultCollapsed ? (
-              <IconButton label="展开 vault 栏" onPress={() => setVaultCollapsed(false)} icon="Folder" styles={styles} />
+              <IconButton label={t("vault.expand")} onPress={() => setVaultCollapsed(false)} icon="Folder" styles={styles} />
             ) : null}
             {listCollapsed ? (
-              <IconButton label="展开目录栏" onPress={() => setUiState({ listCollapsed: false })} icon="PanelLeftOpen" styles={styles} />
+              <IconButton label={t("list.expand")} onPress={() => setUiState({ listCollapsed: false })} icon="PanelLeftOpen" styles={styles} />
             ) : null}
           </View>
-          <EmptyBlock text="从列表选一篇笔记开始阅读。" styles={styles} />
+          <EmptyBlock text={t("reader.pickNote")} styles={styles} />
         </View>
       )}
     </View>

@@ -44,8 +44,13 @@ affect other vaults. Settings are stored per host.
   markdown links into jump targets, with a session back/forward history. In-text link clicks
   cannot be intercepted by the host, so navigation lives in this panel.
 - Outline and in-note find: sections split on ATX headings; the outline jumps to a section
-  (re-measured after images change section height); find shows a match count and cycles
-  prev/next by jumping to the containing section.
+  (re-measured after images change section height); find shows a match count, prev/next cycling,
+  and a collapsible match list (section title + snippet per hit, click to jump). No render-layer
+  highlighting.
+- Search filters: `path:fragment`, `ext:extension`, `re:regex` (no spaces in the regex token,
+  source capped at 200 chars, scanned body truncated at 128KB per file to bound catastrophic
+  backtracking; a bad or over-long regex reports a problem instead of searching). Recent
+  searches appear as chips when the box is empty and are remembered per device (max 20).
 - External-change notice: the open note's mtime is polled every 10s; an external edit shows a
   refresh/dismiss banner, a deletion shows a deleted banner with a way back to the list; the
   note list polls every 15s.
@@ -102,8 +107,11 @@ Command Center (⌘K) offers a global "open Obsidian Notes" entry.
 - Note body cap 2MB; image cap 8MB each, 40 images per note; overflow shows a placeholder note
   instead of silently dropping.
 - SVG images render on desktop/web only; Paseo strips SVG on iOS/Android.
-- Horizontal scrolling and column resizing are web-only; native (including wide tablets)
-  ellipsizes single-line names and keeps fixed column widths.
+- Horizontal scrolling and column resizing are web-only for resizing; on native the list
+  scrolls horizontally via a measured pixel-width horizontal container (single-line names stay
+  fully reachable); native column widths are fixed.
+- The interface is bilingual (English and Simplified Chinese) following the app language;
+  server error codes are mapped to localized messages.
 - No file watching; use refresh after external edits.
 - Each remote machine needs its own install and its own plugin enable switch in
   Settings → Plugins; daemon version must satisfy the manifest requirements.

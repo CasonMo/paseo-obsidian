@@ -31,8 +31,8 @@ function toFailure(error: unknown): NoteReadResult {
 export async function resolveVaultRoot(vault: string, settings: ObsidianSettingsValues): Promise<string> {
   const entries = await listVaults(settings);
   const entry = entries.find((candidate) => candidate.path === vault);
-  if (!entry) throw new VaultError("forbidden", "该 vault 未在本机设置中配置");
-  if (!entry.exists) throw new VaultError("vault-missing", entry.error ?? "vault 不可用");
+  if (!entry) throw new VaultError("forbidden", "err.vault-unconfigured");
+  if (!entry.exists) throw new VaultError("vault-missing", entry.error ?? "err.vault-unavailable");
   return realpath(entry.path);
 }
 
@@ -78,7 +78,7 @@ export async function listVaults(settings: ObsidianSettingsValues): Promise<Vaul
       key = await realpath(resolved);
       const info = await stat(key);
       if (info.isDirectory()) exists = true;
-      else error = "不是目录";
+      else error = "err.not-dir";
     } catch (fsError) {
       error = describeFsError(fsError);
     }
@@ -181,9 +181,9 @@ export async function readNote(
     const root = await resolveVaultRoot(vault, settings);
     const absolute = await resolveInVault(root, notePath);
     const info = await stat(absolute);
-    if (!info.isFile()) throw new VaultError("not-found", "不是文件");
+    if (!info.isFile()) throw new VaultError("not-found", "err.not-file");
     if (info.size > MAX_NOTE_BYTES) {
-      throw new VaultError("too-large", `笔记超过 ${MAX_NOTE_BYTES / 1024 / 1024}MB，请在 Obsidian 中打开`);
+      throw new VaultError("too-large", `err.note-too-large:${MAX_NOTE_BYTES / 1024 / 1024}`);
     }
     const raw = await readFile(absolute, "utf8");
     const stripped = stripFrontmatter(raw);
@@ -214,10 +214,10 @@ export async function readImage(
   const root = await resolveVaultRoot(vault, settings);
   const absolute = await resolveInVault(root, imagePath);
   const info = await stat(absolute);
-  if (!info.isFile()) throw new VaultError("not-found", "图片不存在");
-  if (mimeForPath(absolute) === null) throw new VaultError("not-found", "不是支持的图片格式");
+  if (!info.isFile()) throw new VaultError("not-found", "err.image-not-found");
+  if (mimeForPath(absolute) === null) throw new VaultError("not-found", "err.image-format");
   if (info.size > MAX_IMAGE_BYTES) {
-    throw new VaultError("too-large", `图片超过 ${MAX_IMAGE_BYTES / 1024 / 1024}MB`);
+    throw new VaultError("too-large", `err.image-too-large:${MAX_IMAGE_BYTES / 1024 / 1024}`);
   }
   return readFile(absolute);
 }

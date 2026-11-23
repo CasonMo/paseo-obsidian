@@ -11,9 +11,11 @@ import {
   extractInlineTags,
   extractLinkRefs,
   findMatches,
+  findMatchSpans,
   imageMarkdown,
   mimeForPath,
   parseQueryTags,
+  parseQueryFilters,
   rewriteImages,
   splitSections,
   stripFrontmatter,
@@ -139,7 +141,7 @@ async function testVault(): Promise<void> {
     const broken = await listVaults(settings([vault, path.join(root, "nope")]));
     assert.equal(broken.length, 2);
     assert.equal(broken[1].exists, false);
-    assert.equal(broken[1].error, "路径不存在");
+    assert.equal(broken[1].error, "err.path-missing");
 
     const listed = await listNotes(vault, config, 0);
     const listedPaths = listed.notes.map((note) => note.path);
@@ -273,6 +275,19 @@ async function testReading(): Promise<void> {
   assert.deepEqual(findMatches("abc", ""), []);
   assert.deepEqual(extractInlineTags(body), ["运维"]);
   assert.deepEqual(parseQueryTags("#redis 连接池 tag:pool"), { tags: ["redis", "pool"], rest: "连接池" });
+  assert.deepEqual(findMatchSpans("aXaXa", "a"), [
+    { at: 0, length: 1 },
+    { at: 2, length: 1 },
+    { at: 4, length: 1 },
+  ]);
+  assert.deepEqual(parseQueryFilters("path:docs ext:md re:^# 标题 #ops"), {
+    tags: ["ops"],
+    path: ["docs"],
+    ext: ["md"],
+    regex: "^#",
+    rest: "标题",
+  });
+  assert.equal(parseQueryFilters("re:[bad").regex, "[bad");
   assert.equal(clampWidth("vault", 10), 140);
   assert.equal(clampWidth("vault", 9999), 400);
   assert.equal(clampWidth("list", 10), 220);
@@ -352,6 +367,21 @@ async function testSearch(): Promise<void> {
     assert.equal(combo.hits[0].kind, "content");
     assert.equal((await searchNotes("#123", null, config)).total, 0, "纯数字不是 tag");
     assert.equal((await searchNotes("#运维", null, config)).total, 1);
+
+    const byPath = await searchNotes("path:docs", null, config);
+    assert.equal(byPath.total, 1);
+    assert.ok(byPath.hits.every((hit) => hit.path.startsWith("docs/")));
+    assert.equal((await searchNotes("path:docs ext:md", null, config)).total, 1);
+    assert.equal((await searchNotes("path:docs ext:txt", null, config)).total, 0);
+    const byRegex = await searchNotes("re:配置说明", null, config);
+    assert.equal(byRegex.total, 1);
+    assert.equal(byRegex.hits[0].path, "docs/redis-connection-pool.md");
+    assert.ok(byRegex.hits[0].snippet?.includes("配置说明"));
+    const badRegex = await searchNotes("re:[bad", null, config);
+    assert.equal(badRegex.problem, "err.regex-invalid");
+    assert.equal(badRegex.total, 0);
+    const longRegex = await searchNotes(`re:${"a".repeat(201)}`, null, config);
+    assert.equal(longRegex.problem, "err.regex-too-long");
 
     for (let index = 0; index < 101; index += 1) {
       await writeFile(path.join(vault2, `cap-${index}.md`), "capword\n");

@@ -8,32 +8,45 @@ export interface ImageQueryState {
   dataUpdatedAt?: number;
 }
 
+/** 占位文案模板（调用方 t() 好后传入），内含 {{ref}}/{{mb}}/{{n}} 占位符。 */
+export interface PreviewLabels {
+  missing: string;
+  tooLarge: string;
+  tooMany: string;
+  loading: string;
+  failed: string;
+}
+
+const fill = (template: string, values: Record<string, string | number>) =>
+  template.replace(/\{\{(\w+)\}\}/g, (_match, name: string) => String(values[name] ?? ""));
+
 /** 全篇一次构建 ref→替换文本；各段再 rewriteImages，只替换本段出现的 ref。 */
 export function buildReplacements(
   images: NoteImage[],
   imageQueries: ImageQueryState[],
   vault: string,
   dataUrls: Map<string, string>,
+  labels: PreviewLabels,
 ): Map<string, string> {
   const replacements = new Map<string, string>();
   let position = 0;
   for (const image of images) {
     if (image.problem === "not-found") {
-      replacements.set(image.ref, `*[图片缺失: ${image.ref}]*`);
+      replacements.set(image.ref, fill(labels.missing, { ref: image.ref }));
       continue;
     }
     if (image.problem === "too-large") {
-      replacements.set(image.ref, `*[图片超过 ${MAX_IMAGE_BYTES / 1024 / 1024}MB 未加载: ${image.ref}]*`);
+      replacements.set(image.ref, fill(labels.tooLarge, { mb: MAX_IMAGE_BYTES / 1024 / 1024, ref: image.ref }));
       continue;
     }
     if (image.problem === "too-many") {
-      replacements.set(image.ref, `*[本篇图片超过 ${MAX_IMAGES_PER_NOTE} 张上限: ${image.ref}]*`);
+      replacements.set(image.ref, fill(labels.tooMany, { n: MAX_IMAGES_PER_NOTE, ref: image.ref }));
       continue;
     }
     const query = imageQueries[position];
     position += 1;
     if (image.path === null) {
-      replacements.set(image.ref, "*[图片加载中…]*");
+      replacements.set(image.ref, labels.loading);
       continue;
     }
     // 键含版本：invalidate 后新字节到达不得命中旧 dataURL。
@@ -46,9 +59,9 @@ export function buildReplacements(
       }
       replacements.set(image.ref, imageMarkdown(image.ref, url));
     } else if (query?.isError) {
-      replacements.set(image.ref, `*[图片加载失败: ${image.ref}]*`);
+      replacements.set(image.ref, fill(labels.failed, { ref: image.ref }));
     } else {
-      replacements.set(image.ref, "*[图片加载中…]*");
+      replacements.set(image.ref, labels.loading);
     }
   }
   // 只保留当前笔记的图片缓存，防 Map 无界增长（移动端内存）。

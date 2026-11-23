@@ -4,11 +4,12 @@ import { FlatList as RNFlatList, Platform, Pressable, Text, View } from "react-n
 import { LIST_CAP } from "../../shared/contracts";
 import type { NoteSummary, SearchHit } from "../../shared/contracts";
 import { useNotes, useSearch } from "../data";
+import { errorText, useT } from "../i18n";
 import { setUiState, useUiState } from "../store";
 import { INDENT, type Styles } from "../styles";
 import { buildTree, flattenTree, type TreeRow } from "../tree";
 import { setHoverTitle } from "../web";
-import { Chip, IconButton, IndentGuides, StatusBlock, formatTime, webHContent, webHScroll } from "./bits";
+import { Chip, IconButton, IndentGuides, ListScroll, StatusBlock, formatTime, webHContent, webHScroll } from "./bits";
 
 export function NoteListColumn({
   vault,
@@ -36,7 +37,8 @@ export function NoteListColumn({
   const [scope, setScope] = useState<"vault" | "all">("all");
   const [mode, setMode] = useState<"tree" | "recent">("tree");
   const [selectedIndex, setSelectedIndex] = useState(0);
-  const { expanded: expandedByVault } = useUiState();
+  const t = useT();
+  const { expanded: expandedByVault, searchHistory } = useUiState();
   const expanded = useMemo(() => new Set(expandedByVault[vault] ?? []), [expandedByVault, vault]);
   const notes = useNotes(vault, mode === "tree" ? 0 : LIST_CAP);
   const search = useSearch(scope, vault, query);
@@ -58,6 +60,17 @@ export function NoteListColumn({
   useEffect(() => {
     setSelectedIndex(0);
   }, [hits, scope]);
+
+  const hitTitles = useMemo(() => (hits?.hits ?? []).map((hit) => hit.title), [hits]);
+  const treeTitles = useMemo(() => rows.map((row) => row.name), [rows]);
+  const recentTitles = useMemo(() => (data?.notes ?? []).map((note) => note.title), [data]);
+
+  // 有真实结果时记录搜索历史；placeholder 数据不算，队首相同跳过防写放大。
+  useEffect(() => {
+    if (!searching || search.isPlaceholderData || !hits || hits.total === 0) return;
+    if (searchHistory[0] === query) return;
+    setUiState({ searchHistory: [query, ...searchHistory.filter((item) => item !== query)].slice(0, 20) });
+  }, [searching, query, hits, search.isPlaceholderData, searchHistory]);
 
   function toggleFolder(folderPath: string) {
     const next = new Set(expanded);
@@ -88,22 +101,22 @@ export function NoteListColumn({
     <View style={[styles.listColumn, styles.listColumn.width !== undefined ? { width } : null]}>
       <View style={styles.toolbar}>
         {onExpandVault ? (
-          <IconButton label="展开 vault 栏" onPress={onExpandVault} icon="PanelLeftOpen" styles={styles} />
+          <IconButton label={t("vault.expand")} onPress={onExpandVault} icon="PanelLeftOpen" styles={styles} />
         ) : null}
         {onCollapse ? (
-          <IconButton label="收起目录栏" onPress={onCollapse} icon="PanelLeftClose" styles={styles} />
+          <IconButton label={t("list.collapse")} onPress={onCollapse} icon="PanelLeftClose" styles={styles} />
         ) : null}
-        {onBack ? <IconButton label="返回 vault 列表" onPress={onBack} text="返回" styles={styles} /> : null}
+        {onBack ? <IconButton label={t("list.backToVaults")} onPress={onBack} text={t("common.back")} styles={styles} /> : null}
         <Text style={[styles.heading, { flex: 1 }]} numberOfLines={1}>
           {vault.slice(vault.lastIndexOf("/") + 1)}
         </Text>
       </View>
       <View style={styles.toolbar}>
-        <Chip label="只搜本库" active={scope === "vault"} onPress={() => setScope("vault")} styles={styles}>
-          本库
+        <Chip label={t("list.scopeVaultLabel")} active={scope === "vault"} onPress={() => setScope("vault")} styles={styles}>
+          {t("list.scopeVault")}
         </Chip>
-        <Chip label="搜全部 vault" active={scope === "all"} onPress={() => setScope("all")} styles={styles}>
-          全部
+        <Chip label={t("list.scopeAllLabel")} active={scope === "all"} onPress={() => setScope("all")} styles={styles}>
+          {t("list.scopeAll")}
         </Chip>
       </View>
       <TextInput
@@ -111,38 +124,51 @@ export function NoteListColumn({
         value={text}
         onChangeText={setText}
         onKeyPress={Platform.OS === "web" ? onSearchKeyPress : undefined}
-        placeholder={scope === "all" ? "全局模糊搜索 / #tag…" : "模糊搜索本库 / #tag…"}
+        placeholder={scope === "all" ? t("list.searchAllPlaceholder") : t("list.searchVaultPlaceholder")}
         placeholderTextColor={styles.muted.color}
         autoCapitalize="none"
         autoCorrect={false}
       />
       {searching ? null : (
         <View style={styles.toolbar}>
-          <Chip label="按目录浏览" active={mode === "tree"} onPress={() => setMode("tree")} styles={styles}>
-            目录
+          <Chip label={t("list.modeTreeLabel")} active={mode === "tree"} onPress={() => setMode("tree")} styles={styles}>
+            {t("list.modeTree")}
           </Chip>
-          <Chip label="按修改时间浏览" active={mode === "recent"} onPress={() => setMode("recent")} styles={styles}>
-            最近
+          <Chip label={t("list.modeRecentLabel")} active={mode === "recent"} onPress={() => setMode("recent")} styles={styles}>
+            {t("list.modeRecent")}
           </Chip>
         </View>
       )}
-      {active.isPending ? <Text style={styles.muted}>加载中…</Text> : null}
+      {!searching && searchHistory.length > 0 ? (
+        <View style={styles.toolbar}>
+          {searchHistory.slice(0, 5).map((item) => (
+            <Chip key={item} label={t("list.historyLabel", { query: item })} active={false} onPress={() => setText(item)} styles={styles}>
+              {item}
+            </Chip>
+          ))}
+        </View>
+      ) : null}
+      {active.isPending ? <Text style={styles.muted}>{t("common.loading")}</Text> : null}
       {active.isError ? <StatusBlock error={active.error} onRetry={() => void active.refetch()} styles={styles} /> : null}
-      {searching && hits ? (
+      {searching && hits?.problem ? <Text style={styles.error}>{errorText(hits.problem, t)}</Text> : null}
+      {searching && hits && !hits.problem ? (
         <Text style={styles.small}>
-          命中 {hits.total} 篇{hits.truncated ? "（已截断，加词缩小范围）" : ""}
+          {t("list.hits", { count: hits.total, n: hits.total })}
+          {hits.truncated ? t("list.hitsTruncated") : ""}
         </Text>
       ) : null}
       {!searching && data ? (
         <Text style={styles.small}>
-          共 {data.total} 篇{data.truncated ? "（已截断，输入关键词缩小范围）" : ""}
+          {t("list.total", { count: data.total, n: data.total })}
+          {data.truncated ? t("list.totalTruncated") : ""}
         </Text>
       ) : null}
-      {searching && hits && hits.hits.length === 0 ? <Text style={styles.muted}>无匹配笔记</Text> : null}
+      {searching && hits && hits.hits.length === 0 ? <Text style={styles.muted}>{t("list.noHits")}</Text> : null}
       {!searching && data && data.notes.length === 0 ? (
-        <Text style={styles.muted}>这个 vault 里没有 markdown 笔记</Text>
+        <Text style={styles.muted}>{t("list.empty")}</Text>
       ) : null}
       {searching ? (
+        <ListScroll styles={styles} titles={hitTitles}>
         <FlatList
           ref={hitsRef}
           style={[styles.list, webHScroll]}
@@ -155,7 +181,7 @@ export function NoteListColumn({
           renderItem={({ item, index }: { item: SearchHit; index: number }) => (
             <Pressable
               accessibilityRole="button"
-              accessibilityLabel={`打开 ${item.vaultLabel} 的笔记 ${item.title}`}
+              accessibilityLabel={t("list.openHitLabel", { vault: item.vaultLabel, title: item.title })}
               onPress={() => onOpenHit(item.vault, item.path)}
               ref={(node) => setHoverTitle(node, item.title)}
               style={[styles.row, (selectedIndex === index || (vault === item.vault && selectedNote === item.path)) && styles.rowActive]}
@@ -168,7 +194,9 @@ export function NoteListColumn({
             </Pressable>
           )}
         />
+        </ListScroll>
       ) : showTree ? (
+        <ListScroll styles={styles} titles={treeTitles}>
         <FlatList
           style={[styles.list, webHScroll]}
           contentContainerStyle={[styles.listContent, webHContent]}
@@ -178,7 +206,7 @@ export function NoteListColumn({
             item.kind === "folder" ? (
               <Pressable
                 accessibilityRole="button"
-                accessibilityLabel={`${item.expanded ? "折叠" : "展开"}目录 ${item.name}`}
+                accessibilityLabel={t(item.expanded ? "list.collapseFolderLabel" : "list.expandFolderLabel", { name: item.name })}
                 onPress={() => toggleFolder(item.path)}
                 ref={(node) => setHoverTitle(node, item.name)}
                 style={[styles.row, styles.folderRow, { paddingLeft: 10 + item.depth * INDENT }]}
@@ -196,7 +224,7 @@ export function NoteListColumn({
             ) : (
               <Pressable
                 accessibilityRole="button"
-                accessibilityLabel={`打开笔记 ${item.name}`}
+                accessibilityLabel={t("list.openNoteLabel", { name: item.name })}
                 onPress={() => onSelect(item.path)}
                 ref={(node) => setHoverTitle(node, item.name)}
                 style={[
@@ -214,7 +242,9 @@ export function NoteListColumn({
             )
           }
         />
+        </ListScroll>
       ) : (
+        <ListScroll styles={styles} titles={recentTitles}>
         <FlatList
           style={[styles.list, webHScroll]}
           contentContainerStyle={[styles.listContent, webHContent]}
@@ -223,7 +253,7 @@ export function NoteListColumn({
           renderItem={({ item }: { item: NoteSummary }) => (
             <Pressable
               accessibilityRole="button"
-              accessibilityLabel={`打开笔记 ${item.title}`}
+              accessibilityLabel={t("list.openNoteLabel", { name: item.title })}
               onPress={() => onSelect(item.path)}
               ref={(node) => setHoverTitle(node, item.title)}
               style={[styles.row, selectedNote === item.path && styles.rowActive]}
@@ -235,6 +265,7 @@ export function NoteListColumn({
             </Pressable>
           )}
         />
+        </ListScroll>
       )}
     </View>
   );

@@ -188,16 +188,21 @@ export function splitSections(body: string): Section[] {
 
 /** 大小写不敏感的全部出现位置。查找必须跑在原始文本上，不能跑在重写后文本。 */
 export function findMatches(text: string, needle: string): number[] {
+  return findMatchSpans(text, needle).map((span) => span.at);
+}
+
+/** 带偏移的命中区间，供匹配列表面板做 snippet。 */
+export function findMatchSpans(text: string, needle: string): { at: number; length: number }[] {
   const q = needle.toLowerCase();
   if (!q) return [];
   const t = text.toLowerCase();
-  const positions: number[] = [];
+  const spans: { at: number; length: number }[] = [];
   let at = t.indexOf(q);
   while (at >= 0) {
-    positions.push(at);
+    spans.push({ at, length: q.length });
     at = t.indexOf(q, at + q.length);
   }
-  return positions;
+  return spans;
 }
 
 const INLINE_TAG = /(^|\s)#([\p{L}\p{N}_/-]+)/gu;
@@ -216,16 +221,37 @@ export function extractInlineTags(body: string): string[] {
   return tags;
 }
 
-/** 搜索 query 里的 tag token：#x 与 tag:x；其余词留给模糊/AND 管线。 */
-export function parseQueryTags(query: string): { tags: string[]; rest: string } {
+export interface QueryFilters {
+  tags: string[];
+  path: string[];
+  ext: string[];
+  regex: string | null;
+  rest: string;
+}
+
+/** 搜索 query 过滤 token：#x/tag:x、path:、ext:、re:（正则不含空格）；其余词留给模糊/AND。 */
+export function parseQueryFilters(query: string): QueryFilters {
   const tags: string[] = [];
+  const path: string[] = [];
+  const ext: string[] = [];
+  let regex: string | null = null;
   const rest: string[] = [];
   for (const token of query.split(/\s+/).filter(Boolean)) {
+    const lower = token.toLowerCase();
     if (token.startsWith("#") && token.length > 1) tags.push(token.slice(1).toLowerCase());
-    else if (token.toLowerCase().startsWith("tag:") && token.length > 4) tags.push(token.slice(4).toLowerCase());
+    else if (lower.startsWith("tag:") && token.length > 4) tags.push(token.slice(4).toLowerCase());
+    else if (lower.startsWith("path:") && token.length > 5) path.push(token.slice(5).toLowerCase());
+    else if (lower.startsWith("ext:") && token.length > 4) ext.push(token.slice(4).toLowerCase().replace(/^\./, ""));
+    else if (lower.startsWith("re:") && token.length > 3 && regex === null) regex = token.slice(3);
     else rest.push(token);
   }
-  return { tags, rest: rest.join(" ") };
+  return { tags, path, ext, regex, rest: rest.join(" ") };
+}
+
+/** 兼容旧调用：仅 tag 视图。 */
+export function parseQueryTags(query: string): { tags: string[]; rest: string } {
+  const { tags, rest } = parseQueryFilters(query);
+  return { tags, rest };
 }
 
 /** 远程图与 data/blob 由 host 自己渲染，不进插件的图片管线。 */

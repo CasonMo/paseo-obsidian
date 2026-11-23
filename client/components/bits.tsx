@@ -1,18 +1,15 @@
-import { Icon } from "@getpaseo/plugin/client/ui";
-import { useEffect, useRef, type ReactNode } from "react";
+import { Icon, ScrollView } from "@getpaseo/plugin/client/ui";
+import { useEffect, useRef, useState, type ReactNode } from "react";
 import type { ViewStyle } from "react-native";
 import { Platform, Pressable, Text, View } from "react-native";
 import { INDENT, type Styles } from "../styles";
+import { errorText, useT } from "../i18n";
 import { attachResizeHandle } from "../web";
 
 export function formatTime(ms: number): string {
   const date = new Date(ms);
   const pad = (value: number) => String(value).padStart(2, "0");
   return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())} ${pad(date.getHours())}:${pad(date.getMinutes())}`;
-}
-
-export function errorMessage(error: unknown): string {
-  return error instanceof Error ? error.message : String(error);
 }
 
 /** 工具栏小按钮：icon 与 text 二选一；disabled 时半透明。 */
@@ -71,11 +68,12 @@ export function Chip({
 }
 
 export function StatusBlock({ error, onRetry, styles }: { error: unknown; onRetry: () => void; styles: Styles }) {
+  const t = useT();
   return (
     <View style={{ gap: 8 }}>
-      <Text style={styles.error}>读取失败：{errorMessage(error)}</Text>
+      <Text style={styles.error}>{t("common.readFailed", { message: errorText(error, t) })}</Text>
       <Pressable accessibilityRole="button" onPress={onRetry} style={styles.button}>
-        <Text style={styles.buttonText}>重试</Text>
+        <Text style={styles.buttonText}>{t("common.retry")}</Text>
       </Pressable>
     </View>
   );
@@ -110,6 +108,39 @@ export interface DragHandlers {
  *  不用嵌套 horizontal ScrollView——RNW 会把纵向 wheel 劫持成横向滚动。 */
 export const webHScroll = Platform.OS === "web" ? ({ overflowX: "auto" } as unknown as ViewStyle) : null;
 export const webHContent = Platform.OS === "web" ? ({ minWidth: "100%", width: "max-content" } as unknown as ViewStyle) : null;
+
+/** 标题宽度估算（CJK 全角≈13px，其余≈7.5px），供 native 横滚定宽。 */
+export function estimateTitleWidth(title: string): number {
+  let width = 40;
+  for (const ch of title) {
+    width += /[\u3000-\u9fff\uff00-\uffef]/.test(ch) ? 13 : 7.5;
+  }
+  return width;
+}
+
+/** native 横滚：onLayout 实测外框 W/H，horizontal ScrollView 定像素宽= max(W, 最长标题估算)，
+ *  内层 FlatList 撑满该宽高的像素盒；H=0 时降级裸列表防塌缩。web 原样返回（FlatList 自身 overflowX）。 */
+export function ListScroll({ children, styles, titles }: { children: ReactNode; styles: Styles; titles: string[] }) {
+  const [box, setBox] = useState<{ w: number; h: number } | null>(null);
+  if (Platform.OS === "web") return <>{children}</>;
+  const onLayout = (event: { nativeEvent: { layout: { width: number; height: number } } }) =>
+    setBox({ w: event.nativeEvent.layout.width, h: event.nativeEvent.layout.height });
+  if (!box || box.h === 0) {
+    return (
+      <View style={styles.list} onLayout={onLayout}>
+        {children}
+      </View>
+    );
+  }
+  const contentWidth = Math.max(box.w, ...titles.map(estimateTitleWidth));
+  return (
+    <View style={styles.list} onLayout={onLayout}>
+      <ScrollView horizontal style={{ width: box.w, height: box.h }}>
+        <View style={{ width: contentWidth, height: box.h }}>{children}</View>
+      </ScrollView>
+    </View>
+  );
+}
 
 /** 列间拖拽把手；native 不渲染（宽屏平板不支持调宽）。 */
 export function ColumnDivider({ handlers, styles }: { handlers: DragHandlers; styles: Styles }) {
