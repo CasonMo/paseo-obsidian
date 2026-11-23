@@ -1,6 +1,6 @@
 {
   "name": "paseo-obsidian",
-  "version": "0.2.1",
+  "version": "0.2.2",
   "description": "在 Paseo 里只读浏览 Obsidian vault 的 markdown 笔记；跨 vault 全局模糊搜索、目录树、截图渲染；每台 daemon 各记自己的 vault 路径",
   "license": "MIT",
   "repository": {

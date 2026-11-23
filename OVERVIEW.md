@@ -78,8 +78,12 @@ Search and browse share a 30s directory-list cache; body scans run 16-wide, skip
 2MB, and cap results at 100. The tree is built from the full path set (not the recent view's
 1000-note cap); the recent view marks truncation.
 
-Image bytes travel over the plugin's binary RPC from daemon to client and are inlined as data
-URLs; no third-party service is involved. No network egress, no telemetry, no credentials.
+Local vault image bytes travel over the plugin's binary RPC from daemon to client and are
+inlined as data URLs; no third-party service is involved for those. The plugin's own code makes
+no network calls, has no telemetry and handles no credentials. Rendering is performed by Paseo's
+Markdown component: opening a note that contains remote `http(s)` images causes the Paseo client
+to fetch those image URLs at render time, contacting the remote image hosts. Notes without
+remote images contact nothing beyond the local daemon.
 Command Center (⌘K) offers a global "open Obsidian Notes" entry.
 
 ## Known limitations
