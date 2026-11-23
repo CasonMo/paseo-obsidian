@@ -1,0 +1,35 @@
+{
+  "name": "paseo-obsidian",
+  "version": "0.2.0",
+  "description": "在 Paseo 里只读浏览 Obsidian vault 的 markdown 笔记；跨 vault 全局模糊搜索、目录树、截图渲染；每台 daemon 各记自己的 vault 路径",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/CasonMo/paseo-obsidian.git"
+  },
+  "files": [
+    "paseo-plugin.json",
+    "OVERVIEW.md",
+    "assets/",
+    "index.client.tsx",
+    "index.server.ts",
+    "client/",
+    "server/",
+    "shared/"
+  ],
+  "scripts": {
+    "typecheck": "tsc --noEmit",
+    "smoke": "tsx scripts/smoke.ts"
+  },
+  "devDependencies": {
+    "@getpaseo/plugin": "0.16.0",
+    "@tanstack/react-query": "^5.90.11",
+    "@types/node": "^24.19.2",
+    "@types/react": "~19.2.0",
+    "react": "19.1.0",
+    "react-native": "0.81.5",
+    "tsx": "^4.23.15",
+    "typescript": "^5.9.3",
+    "zod": "^4.4.3"
+  }
+}

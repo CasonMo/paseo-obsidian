@@ -1,0 +1,10 @@
+{
+  "id": "paseo-obsidian",
+  "name": "Obsidian 笔记",
+  "icon": "assets/icon.png",
+  "description": "指定 Obsidian vault，在 Paseo 里只读浏览 markdown 笔记：跨 vault 全局模糊搜索与 tag 过滤、目录树、链出跳转与历史、大纲/文内查找、外部改动提示、截图渲染 / Read-only Obsidian vault browser in Paseo: cross-vault fuzzy + tag search, file tree, outgoing links with history, outline and in-note find, external-change notice, embedded screenshots",
+  "media": [],
+  "requirements": {
+    "paseo": ">=0.16.0"
+  }
+}

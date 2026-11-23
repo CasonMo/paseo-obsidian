@@ -1,0 +1,96 @@
+import type { PluginScreenProps } from "@getpaseo/plugin/client";
+import type { TextStyle, ViewStyle } from "react-native";
+
+export const INDENT = 14;
+
+export function createStyles(theme: PluginScreenProps["theme"], compact: boolean) {
+  return {
+    screen: { flex: 1, flexDirection: compact ? "column" : "row", backgroundColor: theme.colors.surface0 },
+    column: {
+      width: compact ? undefined : 200,
+      flex: compact ? 1 : undefined,
+      borderRightWidth: compact ? 0 : 1,
+      borderColor: theme.colors.border,
+      padding: 12,
+      gap: 8,
+    },
+    listColumn: {
+      width: compact ? undefined : 320,
+      flex: compact ? 1 : undefined,
+      borderRightWidth: compact ? 0 : 1,
+      borderColor: theme.colors.border,
+      padding: 12,
+      gap: 8,
+    },
+    readerColumn: { flex: 1, padding: compact ? 12 : 20, gap: 10, minHeight: 0 },
+    heading: { fontSize: 13, fontWeight: "600", color: theme.colors.foreground },
+    title: { fontSize: compact ? 17 : 20, fontWeight: "600", color: theme.colors.foreground, flexShrink: 1 },
+    muted: { fontSize: 12, color: theme.colors.foregroundMuted },
+    small: { fontSize: 11, color: theme.colors.foregroundMuted },
+    error: { fontSize: 12, color: theme.colors.statusDanger },
+    row: {
+      paddingVertical: 6,
+      paddingHorizontal: 8,
+      borderRadius: 6,
+      backgroundColor: "transparent",
+      gap: 2,
+    },
+    rowActive: { backgroundColor: theme.colors.surface2 },
+    rowText: { fontSize: 13, color: theme.colors.foreground },
+    rowTextDisabled: { color: theme.colors.foregroundMuted },
+    snippet: { fontSize: 11, color: theme.colors.foregroundMuted },
+    guide: { position: "absolute", top: 0, bottom: 0, width: 1, backgroundColor: theme.colors.border },
+    divider: { width: 8, flexShrink: 0, backgroundColor: "transparent" },
+    chip: { paddingHorizontal: 10, paddingVertical: 4, borderRadius: 999, backgroundColor: theme.colors.surface1 },
+    chipActive: { backgroundColor: theme.colors.accent },
+    chipText: { fontSize: 11, color: theme.colors.foregroundMuted },
+    chipTextActive: { color: theme.colors.accentForeground },
+    folderRow: { backgroundColor: "transparent", paddingVertical: 5 },
+    folderLine: { flexDirection: "row", alignItems: "center", gap: 6 },
+    toolbar: { flexDirection: "row", alignItems: "center", gap: 8, flexWrap: "wrap" },
+    button: {
+      paddingHorizontal: 10,
+      paddingVertical: 5,
+      borderRadius: 8,
+      backgroundColor: theme.colors.surface1,
+      borderWidth: 1,
+      borderColor: theme.colors.border,
+    },
+    buttonText: { fontSize: 12, color: theme.colors.foreground },
+    input: {
+      backgroundColor: theme.colors.surface2,
+      borderRadius: 8,
+      borderWidth: 1,
+      borderColor: theme.colors.border,
+      color: theme.colors.foreground,
+      paddingHorizontal: 10,
+      paddingVertical: 7,
+      fontSize: 13,
+    },
+    panel: {
+      borderRadius: 8,
+      borderWidth: 1,
+      borderColor: theme.colors.border,
+      backgroundColor: theme.colors.surface1,
+      padding: 8,
+      gap: 4,
+      maxHeight: 220,
+    },
+    banner: {
+      padding: 10,
+      borderRadius: 8,
+      backgroundColor: theme.colors.surface2,
+      borderWidth: 1,
+      borderColor: theme.colors.statusWarning,
+      gap: 8,
+    },
+    empty: { flex: 1, alignItems: "center", justifyContent: "center", gap: 12, padding: 24 },
+    emptyText: { fontSize: 13, color: theme.colors.foregroundMuted, textAlign: "center" },
+    readerScroll: { flex: 1 },
+    readerContent: { paddingBottom: 40 },
+    list: { flex: 1 },
+    listContent: { gap: 2, paddingBottom: 24 },
+  } satisfies Record<string, ViewStyle | TextStyle>;
+}
+
+export type Styles = ReturnType<typeof createStyles>;
