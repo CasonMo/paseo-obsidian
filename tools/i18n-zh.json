@@ -125,5 +125,12 @@
   "err.image-too-large": "图片超过 {{mb}}MB",
   "err.regex-invalid": "正则表达式无效",
   "err.regex-too-long": "正则表达式过长",
-  "err.invalid-relative-path": "无效的相对路径"
+  "err.invalid-relative-path": "无效的相对路径",
+  "community.title": "开源共创",
+  "community.hint": "Obsidian Notes 因你而更好。发现问题或有新想法？欢迎提 Issue、提 PR。",
+  "community.issue": "提 Issue",
+  "community.pr": "提 PR",
+  "community.issueA11y": "在 GitHub 提 Issue",
+  "community.prA11y": "在 GitHub 提 Pull Request",
+  "community.dismissA11y": "关闭共创提示"
 }

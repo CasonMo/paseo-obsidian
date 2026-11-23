@@ -60,6 +60,8 @@ affect other vaults. Settings are stored per host.
   bare spaces in link targets); bare filenames resolve across the vault; image syntax inside
   code fences is left untouched.
 - Copy the absolute note path (handy for passing to an agent) and manual refresh.
+- A dismissible open-source co-creation banner (issue / PR links) at the top; dismissal is
+  remembered per device.
 - Browse state remembered per device: last vault, open note, vault/list column collapse,
   per-vault folder expansion, both column widths; restored on re-entry and app restart
   (a collapsed column stays collapsed).

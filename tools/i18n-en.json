@@ -127,5 +127,12 @@
   "err.image-too-large": "Image exceeds {{mb}}MB",
   "err.regex-invalid": "Invalid regular expression",
   "err.regex-too-long": "Regular expression too long",
-  "err.invalid-relative-path": "Invalid relative path"
+  "err.invalid-relative-path": "Invalid relative path",
+  "community.title": "Open source, built together",
+  "community.hint": "Obsidian Notes gets better with you. Found a bug or have an idea? Open an issue or send a PR.",
+  "community.issue": "Open issue",
+  "community.pr": "Open PR",
+  "community.issueA11y": "Open a GitHub issue",
+  "community.prA11y": "Open a GitHub pull request",
+  "community.dismissA11y": "Dismiss co-creation banner"
 }

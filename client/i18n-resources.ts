@@ -146,6 +146,15 @@ export const resources = {
     "regex-invalid": "Invalid regular expression",
     "regex-too-long": "Regular expression too long",
     "invalid-relative-path": "Invalid relative path"
+  },
+  "community": {
+    "title": "Open source, built together",
+    "hint": "Obsidian Notes gets better with you. Found a bug or have an idea? Open an issue or send a PR.",
+    "issue": "Open issue",
+    "pr": "Open PR",
+    "issueA11y": "Open a GitHub issue",
+    "prA11y": "Open a GitHub pull request",
+    "dismissA11y": "Dismiss co-creation banner"
   }
 },
   "zh-CN": {
@@ -291,6 +300,15 @@ export const resources = {
     "regex-invalid": "正则表达式无效",
     "regex-too-long": "正则表达式过长",
     "invalid-relative-path": "无效的相对路径"
+  },
+  "community": {
+    "title": "开源共创",
+    "hint": "Obsidian Notes 因你而更好。发现问题或有新想法？欢迎提 Issue、提 PR。",
+    "issue": "提 Issue",
+    "pr": "提 PR",
+    "issueA11y": "在 GitHub 提 Issue",
+    "prA11y": "在 GitHub 提 Pull Request",
+    "dismissA11y": "关闭共创提示"
   }
 },
 } as const;

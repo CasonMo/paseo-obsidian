@@ -24,6 +24,7 @@ export interface UiState {
   vaultWidth: number;
   listWidth: number;
   searchHistory: string[];
+  communityDismissed: boolean;
 }
 
 let uiState: UiState = {
@@ -37,6 +38,7 @@ let uiState: UiState = {
   vaultWidth: 200,
   listWidth: 320,
   searchHistory: [],
+  communityDismissed: false,
 };
 let uiRestored = false;
 let uiAutoSelected = false;
@@ -90,7 +92,7 @@ export function consumeAnchor(
 /** 浏览状态持久化：一次性恢复、无记忆时自动选 vault、失效回落、历史栈 prune、防抖串行写回。 */
 export function useBrowsePersistence(opts: { entries: VaultEntry[]; entriesKey: string; vaultsPending: boolean }) {
   const { entries, entriesKey, vaultsPending } = opts;
-  const { vault, notePath, vaultCollapsed, expanded, history, listCollapsed, vaultWidth, listWidth, searchHistory } = useUiState();
+  const { vault, notePath, vaultCollapsed, expanded, history, listCollapsed, vaultWidth, listWidth, searchHistory, communityDismissed } = useUiState();
   const setVault = (value: string | null) => setUiState({ vault: value });
   const setNotePath = (value: string | null) => setUiState({ notePath: value });
   const ui = useSettings(obsidianUiSettings);
@@ -103,7 +105,7 @@ export function useBrowsePersistence(opts: { entries: VaultEntry[]; entriesKey: 
     const values =
       ui.status === "ready"
         ? ui.values
-        : { vault: null, notePath: null, vaultCollapsed: false, expanded: {}, listCollapsed: false, vaultWidth: 200, listWidth: 320, searchHistory: [] };
+        : { vault: null, notePath: null, vaultCollapsed: false, expanded: {}, listCollapsed: false, vaultWidth: 200, listWidth: 320, searchHistory: [], communityDismissed: false };
     const history = values.vault !== null && values.notePath !== null ? [{ vault: values.vault, notePath: values.notePath }] : [];
     setUiState({
       vault: values.vault,
@@ -114,6 +116,7 @@ export function useBrowsePersistence(opts: { entries: VaultEntry[]; entriesKey: 
       vaultWidth: clampWidth("vault", values.vaultWidth),
       listWidth: clampWidth("list", values.listWidth),
       searchHistory: values.searchHistory,
+      communityDismissed: values.communityDismissed,
       history,
       historyIndex: history.length - 1,
     });
@@ -164,7 +167,7 @@ export function useBrowsePersistence(opts: { entries: VaultEntry[]; entriesKey: 
   const uiRevision = uiReady?.revision ?? "";
   useEffect(() => {
     if (!restored || uiReady === null) return;
-    const next = { vault, notePath, vaultCollapsed, expanded, listCollapsed, vaultWidth, listWidth, searchHistory };
+    const next = { vault, notePath, vaultCollapsed, expanded, listCollapsed, vaultWidth, listWidth, searchHistory, communityDismissed };
     if (JSON.stringify(next) === uiValuesKey) return;
     const timer = setTimeout(() => {
       const current = uiRef.current;
@@ -177,5 +180,5 @@ export function useBrowsePersistence(opts: { entries: VaultEntry[]; entriesKey: 
       });
     }, 250);
     return () => clearTimeout(timer);
-  }, [restored, ui.status, uiValuesKey, uiRevision, vault, notePath, vaultCollapsed, expanded, listCollapsed, vaultWidth, listWidth, searchHistory]);
+  }, [restored, ui.status, uiValuesKey, uiRevision, vault, notePath, vaultCollapsed, expanded, listCollapsed, vaultWidth, listWidth, searchHistory, communityDismissed]);
 }

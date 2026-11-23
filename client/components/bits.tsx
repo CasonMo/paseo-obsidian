@@ -1,3 +1,4 @@
+import { openExternalUrl } from "@getpaseo/plugin/client";
 import { Icon, ScrollView } from "@getpaseo/plugin/client/ui";
 import { useEffect, useRef, useState, type ReactNode } from "react";
 import type { ViewStyle } from "react-native";
@@ -84,6 +85,59 @@ export function EmptyBlock({ text, children, styles }: { text: string; children?
     <View style={styles.empty}>
       <Text style={styles.emptyText}>{text}</Text>
       {children}
+    </View>
+  );
+}
+
+const ISSUE_URL = "https://github.com/CasonMo/paseo-obsidian/issues/new";
+const PULL_REQUEST_URL = "https://github.com/CasonMo/paseo-obsidian/pulls";
+
+/** 开源共创展示条：提 Issue / 提 PR / 关闭；关闭状态由调用方写入 device 级 store。 */
+export function CommunityBanner({ styles, onDismiss }: { styles: Styles; onDismiss: () => void }) {
+  const t = useT();
+  const open = (url: string) => {
+    void openExternalUrl(url).catch((error) => {
+      console.error("Failed to open community link", error);
+    });
+  };
+  return (
+    <View style={styles.communityBanner}>
+      <View style={styles.communityBody}>
+        <Icon name="Sparkles" size={15} color={styles.communityTitle.color} />
+        <Text style={styles.communityText}>
+          <Text style={styles.communityTitle}>{t("community.title")}</Text>
+          {` · ${t("community.hint")}`}
+        </Text>
+      </View>
+      <View style={styles.communityActions}>
+        <Pressable
+          accessibilityRole="link"
+          accessibilityLabel={t("community.issueA11y")}
+          hitSlop={6}
+          onPress={() => open(ISSUE_URL)}
+          style={styles.communityAction}
+        >
+          <Text style={styles.communityActionText}>{t("community.issue")}</Text>
+        </Pressable>
+        <Pressable
+          accessibilityRole="link"
+          accessibilityLabel={t("community.prA11y")}
+          hitSlop={6}
+          onPress={() => open(PULL_REQUEST_URL)}
+          style={styles.communityAction}
+        >
+          <Text style={styles.communityActionText}>{t("community.pr")}</Text>
+        </Pressable>
+      </View>
+      <Pressable
+        accessibilityRole="button"
+        accessibilityLabel={t("community.dismissA11y")}
+        hitSlop={8}
+        onPress={onDismiss}
+        style={styles.communityDismiss}
+      >
+        <Text style={styles.communityDismissText}>✕</Text>
+      </Pressable>
     </View>
   );
 }

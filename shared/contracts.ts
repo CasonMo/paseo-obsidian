@@ -36,6 +36,7 @@ export const obsidianUiSettings = defineSettings({
     vaultWidth: z.number().default(200),
     listWidth: z.number().default(320),
     searchHistory: z.array(z.string().min(1).max(200)).max(20).default([]),
+    communityDismissed: z.boolean().default(false),
   }),
 });
 

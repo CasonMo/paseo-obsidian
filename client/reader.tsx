@@ -1,8 +1,8 @@
 import type { PluginScreenProps } from "@getpaseo/plugin/client";
-import { useMemo, useRef, useState } from "react";
+import { useMemo, useRef, useState, type ReactNode } from "react";
 import { Pressable, Text, View } from "react-native";
 import { clampWidth } from "../shared/contracts";
-import { ColumnDivider, EmptyBlock, IconButton, type DragHandlers } from "./components/bits";
+import { ColumnDivider, CommunityBanner, EmptyBlock, IconButton, type DragHandlers } from "./components/bits";
 import { NoteListColumn } from "./components/NoteListColumn";
 import { NoteReaderColumn } from "./components/NoteReaderColumn";
 import { VaultColumn } from "./components/VaultColumn";
@@ -17,7 +17,7 @@ export function ObsidianScreen(props: PluginScreenProps) {
   const t = useT();
   const compact = layout.compact;
   const styles = useMemo(() => createStyles(theme, compact), [theme, compact]);
-  const { vault, notePath, vaultCollapsed, history, historyIndex, listCollapsed, vaultWidth, listWidth } = useUiState();
+  const { vault, notePath, vaultCollapsed, history, historyIndex, listCollapsed, vaultWidth, listWidth, communityDismissed } = useUiState();
   const setVault = (value: string | null) => setUiState({ vault: value });
   const setNotePath = (value: string | null) => setUiState({ notePath: value });
   const setVaultCollapsed = (value: boolean) => setUiState({ vaultCollapsed: value });
@@ -81,18 +81,6 @@ export function ObsidianScreen(props: PluginScreenProps) {
   const backToNotes = () => setNotePath(null);
   const backToVaults = () => setVault(null);
 
-  if (!vaults.isPending && !vaults.isError && entries.length === 0) {
-    return (
-      <View style={[styles.screen, { flexDirection: "column" }]}>
-        <EmptyBlock text={t("reader.noVaults")} styles={styles}>
-          <Pressable accessibilityRole="button" onPress={openSettings} style={styles.button}>
-            <Text style={styles.buttonText}>{t("reader.openSettings")}</Text>
-          </Pressable>
-        </EmptyBlock>
-      </View>
-    );
-  }
-
   const vaultColumn = (
     <VaultColumn
       entries={entries}
@@ -118,9 +106,20 @@ export function ObsidianScreen(props: PluginScreenProps) {
   };
   const listVisible = vault !== null && !listCollapsed;
 
-  if (compact) {
+  let body: ReactNode;
+  if (!vaults.isPending && !vaults.isError && entries.length === 0) {
+    body = (
+      <View style={[styles.screen, { flexDirection: "column" }]}>
+        <EmptyBlock text={t("reader.noVaults")} styles={styles}>
+          <Pressable accessibilityRole="button" onPress={openSettings} style={styles.button}>
+            <Text style={styles.buttonText}>{t("reader.openSettings")}</Text>
+          </Pressable>
+        </EmptyBlock>
+      </View>
+    );
+  } else if (compact) {
     if (vault !== null && notePath !== null) {
-      return (
+      body = (
         <View style={styles.screen}>
           <NoteReaderColumn
             key={JSON.stringify([vault, notePath])}
@@ -132,9 +131,8 @@ export function ObsidianScreen(props: PluginScreenProps) {
           />
         </View>
       );
-    }
-    if (vault !== null) {
-      return (
+    } else if (vault !== null) {
+      body = (
         <View style={styles.screen}>
           <NoteListColumn
             vault={vault}
@@ -147,42 +145,52 @@ export function ObsidianScreen(props: PluginScreenProps) {
           />
         </View>
       );
+    } else {
+      body = <View style={styles.screen}>{vaultColumn}</View>;
     }
-    return <View style={styles.screen}>{vaultColumn}</View>;
+  } else {
+    body = (
+      <View style={styles.screen}>
+        {vaultCollapsed ? null : vaultColumn}
+        {vaultCollapsed ? null : <ColumnDivider handlers={dividerHandlers("vault")} styles={styles} />}
+        {listVisible ? (
+          <NoteListColumn
+            vault={vault}
+            selectedNote={notePath}
+            onSelect={selectNote}
+            onOpenHit={openHit}
+            onExpandVault={vaultCollapsed ? () => setVaultCollapsed(false) : undefined}
+            onCollapse={() => setUiState({ listCollapsed: true })}
+            width={drag?.kind === "list" ? drag.width : listWidth}
+            styles={styles}
+          />
+        ) : null}
+        {listVisible ? <ColumnDivider handlers={dividerHandlers("list")} styles={styles} /> : null}
+        {vault !== null && notePath !== null ? (
+          <NoteReaderColumn key={JSON.stringify([vault, notePath])} vault={vault} notePath={notePath} styles={styles} {...readerProps} />
+        ) : (
+          <View style={styles.readerColumn}>
+            <View style={styles.toolbar}>
+              {vaultCollapsed ? (
+                <IconButton label={t("vault.expand")} onPress={() => setVaultCollapsed(false)} icon="Folder" styles={styles} />
+              ) : null}
+              {listCollapsed ? (
+                <IconButton label={t("list.expand")} onPress={() => setUiState({ listCollapsed: false })} icon="PanelLeftOpen" styles={styles} />
+              ) : null}
+            </View>
+            <EmptyBlock text={t("reader.pickNote")} styles={styles} />
+          </View>
+        )}
+      </View>
+    );
   }
 
   return (
-    <View style={styles.screen}>
-      {vaultCollapsed ? null : vaultColumn}
-      {vaultCollapsed ? null : <ColumnDivider handlers={dividerHandlers("vault")} styles={styles} />}
-      {listVisible ? (
-        <NoteListColumn
-          vault={vault}
-          selectedNote={notePath}
-          onSelect={selectNote}
-          onOpenHit={openHit}
-          onExpandVault={vaultCollapsed ? () => setVaultCollapsed(false) : undefined}
-          onCollapse={() => setUiState({ listCollapsed: true })}
-          width={drag?.kind === "list" ? drag.width : listWidth}
-          styles={styles}
-        />
-      ) : null}
-      {listVisible ? <ColumnDivider handlers={dividerHandlers("list")} styles={styles} /> : null}
-      {vault !== null && notePath !== null ? (
-        <NoteReaderColumn key={JSON.stringify([vault, notePath])} vault={vault} notePath={notePath} styles={styles} {...readerProps} />
-      ) : (
-        <View style={styles.readerColumn}>
-          <View style={styles.toolbar}>
-            {vaultCollapsed ? (
-              <IconButton label={t("vault.expand")} onPress={() => setVaultCollapsed(false)} icon="Folder" styles={styles} />
-            ) : null}
-            {listCollapsed ? (
-              <IconButton label={t("list.expand")} onPress={() => setUiState({ listCollapsed: false })} icon="PanelLeftOpen" styles={styles} />
-            ) : null}
-          </View>
-          <EmptyBlock text={t("reader.pickNote")} styles={styles} />
-        </View>
+    <View style={styles.screenOuter}>
+      {communityDismissed ? null : (
+        <CommunityBanner styles={styles} onDismiss={() => setUiState({ communityDismissed: true })} />
       )}
+      {body}
     </View>
   );
 }
